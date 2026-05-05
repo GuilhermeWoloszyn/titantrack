@@ -1,0 +1,100 @@
+services:
+  kong:
+    image: kong:latest
+    container_name: kong-gateway
+    environment:
+      KONG_DATABASE: "off" 
+      KONG_DECLARATIVE_CONFIG: "/usr/local/kong/kong.yml"
+      KONG_PROXY_ACCESS_LOG: "/dev/stdout"
+      KONG_ADMIN_ACCESS_LOG: "/dev/stdout"
+      KONG_PROXY_ERROR_LOG: "/dev/stderr"
+      KONG_ADMIN_ERROR_LOG: "/dev/stderr"
+      KONG_ADMIN_LISTEN: "0.0.0.0:8001"
+    ports:
+      - "8000:8000" 
+      - "8001:8001"
+    volumes:
+      - ./kong-api-gateway/kong.yml:/usr/local/kong/kong.yml
+    depends_on:
+      - bff-service
+    networks:
+      - app-network
+
+  db-workout:
+    image: postgres:15-alpine
+    container_name: db-workout
+    environment:
+    - POSTGRES_USER=guilherme
+    - POSTGRES_PASSWORD=12345
+    - POSTGRES_DB=workout_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U guilherme -d workout_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  db-nutrition:
+    image: mongo:latest
+    container_name: db-nutrition
+    environment:
+      MONGO_INITDB_DATABASE: nutrition_db
+    networks:
+      - app-network
+
+  bff-service:
+    build: 
+      context: ./bff-service
+      dockerfile: Dockerfile
+    container_name: bff-service
+    hostname: bff-service
+    ports:
+      - "8005:8000"
+    depends_on:
+      - auth-service
+      - nutrition-service
+      - workout-service
+    links:
+      - auth-service
+      - nutrition-service
+      - workout-service
+    networks:
+      - app-network
+
+  auth-service:
+    build: ./auth-service
+    container_name: auth-service
+    hostname: auth-service
+    ports:
+      - "8002:8000"
+    networks:
+      - app-network
+
+  nutrition-service:
+    build: ./nutrition-service
+    container_name: nutrition-service
+    hostname: nutrition-service
+    ports:
+      - "8011:8000"
+    depends_on:
+      - db-nutrition
+    networks:
+      - app-network
+
+  workout-service:
+    build: ./workout-service
+    container_name: workout-service
+    hostname: workout-service
+    ports:
+      - "8003:8000"
+    depends_on:
+      db-workout:
+        condition: service_healthy
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    name: app-network
+    driver: bridge
