@@ -1,12 +1,26 @@
+import os
 from fastapi import FastAPI, Header, HTTPException, Form
 from pydantic import BaseModel
 import httpx
+from prometheus_fastapi_instrumentator import Instrumentator
 
-app = FastAPI(title="TitanTrack AI - BFF Service")
+ENVIRONMENT = os.getenv("ENV", "DEV").upper()
 
-AUTH_SERVICE_URL = "http://auth-service:8000"
-NUTRITION_SERVICE_URL = "http://nutrition-service:8000"
-WORKOUT_SERVICE_URL = "http://workout-service:8000"
+if ENVIRONMENT == "HOMOL":
+    app = FastAPI(
+        title="TitanTrack AI - BFF Service",
+        docs_url=None,      # Esconde /docs
+        redoc_url=None,     # Esconde /redoc
+        openapi_url=None    # Esconde o JSON de configuração
+    )
+else:
+    app = FastAPI(title="TitanTrack AI - BFF Service (Ambiente DEV)")
+
+Instrumentator().instrument(app).expose(app)
+
+AUTH_SERVICE_URL = os.getenv("AUTH_SERVICE_URL", "http://auth-service:8000")
+NUTRITION_SERVICE_URL = os.getenv("NUTRITION_SERVICE_URL", "http://nutrition-service:8000")
+WORKOUT_SERVICE_URL = os.getenv("WORKOUT_SERVICE_URL", "http://workout-service:8000")
 
 class PerfilPayload(BaseModel):
     usuario: str
@@ -15,7 +29,10 @@ class PerfilPayload(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"message": "BFF Service operacional e conectado aos bancos"}
+    return {
+        "message": "BFF Service operacional e conectado aos bancos",
+        "ambiente": ENVIRONMENT
+    }
 
 @app.post("/auth/login")
 async def login(username: str = Form(...), password: str = Form(...)):

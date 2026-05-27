@@ -1,0 +1,33 @@
+name: BFF Service - CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  test-and-coverage:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python 3.10
+      uses: actions/setup-python@v5
+      with:
+        python-node: '3.10'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pytest pytest-cov httpx
+        if [ -f bff-service/requirements.txt ]; then pip install -r bff-service/requirements.txt; fi
+
+    - name: Run tests with pytest
+      env:
+        ENV: DEV
+      run: |
+        cd bff-service
+        pytest tests/ --cov=app --cov-fail-under=50
