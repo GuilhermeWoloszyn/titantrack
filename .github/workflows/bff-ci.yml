@@ -35,11 +35,10 @@ jobs:
         ENV: DEV
       run: |
         cd bff-service
-        # Adicionado --cov-report=xml para gerar o relatório que o SonarCloud lê
         pytest tests/ --cov=app --cov-report=xml --cov-fail-under=50
 
     - name: SonarCloud Scan
-      uses: SonarSource/sonarcloud-github-action@master
+      uses: SonarSource/sonarqube-scan-action@master
       with:
         projectBaseDir: bff-service
       env:
