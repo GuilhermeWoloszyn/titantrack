@@ -41,6 +41,8 @@ jobs:
       uses: SonarSource/sonarqube-scan-action@master
       with:
         projectBaseDir: bff-service
+        args: >
+          -Dsonar.host.url=https://sonarcloud.io
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
