@@ -6,15 +6,20 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 ENVIRONMENT = os.getenv("ENV", "DEV").upper()
 
+# O parâmetro root_path="/api" garante que o Swagger ache o openapi.json através do Kong
 if ENVIRONMENT == "HOMOL":
     app = FastAPI(
         title="TitanTrack AI - BFF Service",
+        root_path="/api",
         docs_url=None,      # Esconde /docs
         redoc_url=None,     # Esconde /redoc
         openapi_url=None    # Esconde o JSON de configuração
     )
 else:
-    app = FastAPI(title="TitanTrack AI - BFF Service (Ambiente DEV)")
+    app = FastAPI(
+        title="TitanTrack AI - BFF Service (Ambiente DEV)",
+        root_path="/api"
+    )
 
 Instrumentator().instrument(app).expose(app)
 
