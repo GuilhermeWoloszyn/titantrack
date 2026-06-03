@@ -35,7 +35,7 @@ jobs:
         ENV: DEV
       run: |
         cd bff-service
-        pytest tests/ --cov=app --cov-report=xml:coverage.xml --cov-fail-under=50
+        pytest tests/ --cov=app --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=80
 
     - name: SonarCloud Scan
       uses: sonarsource/sonarcloud-scan-action@v3.0.0
