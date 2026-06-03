@@ -9,8 +9,8 @@ ENVIRONMENT = os.getenv("ENV", "DEV").upper()
 if ENVIRONMENT == "HOMOL":
     app = FastAPI(
         title="TitanTrack AI - BFF Service",
-        docs_url=None,      
-        redoc_url=None,      
+        docs_url=None,     
+        redoc_url=None,     
         openapi_url=None    
     )
 else:
