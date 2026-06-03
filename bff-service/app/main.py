@@ -6,12 +6,15 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 ENVIRONMENT = os.getenv("ENV", "DEV").upper()
 
-app = FastAPI(
-    title="TitanTrack AI - BFF Service",
-    docs_url=None if ENVIRONMENT == "HOMOL" else "/docs",
-    redoc_url=None if ENVIRONMENT == "HOMOL" else "/redoc",
-    openapi_url=None if ENVIRONMENT == "HOMOL" else "/openapi.json"
-)
+if ENVIRONMENT == "HOMOL":
+    app = FastAPI(
+        title="TitanTrack AI - BFF Service",
+        docs_url=None,
+        redoc_url=None,
+        openapi_url=None
+    )
+else:
+    app = FastAPI(title="TitanTrack AI - BFF Service (Ambiente DEV)")
 
 Instrumentator().instrument(app).expose(app)
 
@@ -36,20 +39,17 @@ async def root():
 
 @app.post("/auth/login")
 async def login(username: str = Form(...), password: str = Form(...)):
-    try:
-        async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient() as client:
+        try:
             response = await client.post(
                 f"{AUTH_SERVICE_URL}/login",
                 data={"username": username, "password": password}
             )
-
-        if response.status_code != 200:
-            raise HTTPException(status_code=response.status_code, detail=response.json())
-
-        return response.json()
-
-    except httpx.RequestError:
-        raise HTTPException(status_code=503, detail="Serviço de Autenticação indisponível")
+            if response.status_code != 200:
+                raise HTTPException(status_code=response.status_code, detail=response.json())
+            return response.json()
+        except httpx.RequestError:
+            raise HTTPException(status_code=503, detail="Serviço de Autenticação indisponível")
 
 
 @app.post("/aluno/perfil-completo")
@@ -57,8 +57,8 @@ async def post_perfil_completo(payload: PerfilPayload, authorization: str = Head
     if not authorization:
         raise HTTPException(status_code=401, detail="Token não fornecido")
 
-    try:
-        async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient() as client:
+        try:
             res_dieta = await client.post(
                 f"{NUTRITION_SERVICE_URL}/calcular-dieta",
                 headers={"Authorization": authorization},
@@ -70,15 +70,15 @@ async def post_perfil_completo(payload: PerfilPayload, authorization: str = Head
                 json=payload.treino
             )
 
-        return {
-            "usuario_logado": payload.usuario,
-            "dados_nutricionais": res_dieta.json(),
-            "plano_treino": res_treino.json(),
-            "status": "Processamento concluído"
-        }
+            return {
+                "usuario_logado": payload.usuario,
+                "dados_nutricionais": res_dieta.json(),
+                "plano_treino": res_treino.json(),
+                "status": "Processamento concluído"
+            }
 
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=str(e))
 
 
 @app.get("/aluno/historico-geral")
@@ -86,8 +86,8 @@ async def get_historico_geral(authorization: str = Header(None)):
     if not authorization:
         raise HTTPException(status_code=401, detail="Token não fornecido")
 
-    try:
-        async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient() as client:
+        try:
             res_workout = await client.get(
                 f"{WORKOUT_SERVICE_URL}/historico",
                 headers={"Authorization": authorization}
@@ -98,16 +98,12 @@ async def get_historico_geral(authorization: str = Header(None)):
                 headers={"Authorization": authorization}
             )
 
-        return {
-            "usuario": "Guilherme",
-            "historico_treinos_relacional_postgres":
-                res_workout.json() if res_workout.status_code == 200 else [],
+            return {
+                "usuario": "Guilherme",
+                "historico_treinos_relacional_postgres": res_workout.json(),
+                "historico_dietas_documental_mongo": res_nutrition.json(),
+                "infraestrutura": "Dados agregados"
+            }
 
-            "historico_dietas_documental_mongo":
-                res_nutrition.json() if res_nutrition.status_code == 200 else [],
-
-            "infraestrutura": "Dados agregados"
-        }
-
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=503, detail=str(e))
