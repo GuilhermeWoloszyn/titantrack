@@ -137,7 +137,7 @@ As métricas coletadas permitem acompanhar:
 
 ```bash
 git clone <repositorio>
-cd titantrack-bff
+cd bff-service
 ```
 
 ## Criando o Ambiente Virtual
@@ -195,7 +195,7 @@ POST /api/auth
 **URL**
 
 ```text
-https://titantrack-bfff-homol.onrender.com/api/auth
+https://titantrack-wgv3.onrender.com/api/auth
 ```
 
 ## Consulta de Alunos
@@ -209,7 +209,7 @@ GET /api/aluno
 **URL**
 
 ```text
-https://titantrack-bfff-homol.onrender.com/api/aluno
+https://titantrack-wgv3.onrender.com/api/aluno
 ```
 
 **Resposta Esperada**
