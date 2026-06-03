@@ -2,9 +2,9 @@ name: BFF Service - CI
 
 on:
   push:
-    branches: [ "master", "develop" ]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [ "master", "develop" ]
+    branches: [ "main", "develop" ]
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -35,33 +35,14 @@ jobs:
         ENV: DEV
       run: |
         cd bff-service
-        pytest tests/ --cov=app --cov-report=xml:coverage.xml --cov-fail-under=50
+        pytest tests/ --cov=app --cov-report=xml --cov-fail-under=50
 
     - name: SonarCloud Scan
-      uses: sonarsource/sonar-scanner-action@v3.0.0
+      uses: SonarSource/sonarqube-scan-action@master
       with:
         projectBaseDir: bff-service
         args: >
           -Dsonar.host.url=https://sonarcloud.io
-          -Dsonar.branch.name=master
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-    - name: Login to Docker Hub
-      if: github.event_name == 'push'
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-    - name: Build and push Docker image
-      if: github.event_name == 'push'
-      uses: docker/build-push-action@v5
-      with:
-        context: ./bff-service
-        file: ./bff-service/Dockerfile
-        push: true
-        tags: |
-          ${{ secrets.DOCKERHUB_USERNAME }}/devops-bff-service:latest
-          ${{ secrets.DOCKERHUB_USERNAME }}/devops-bff-service:${{ github.sha }}
