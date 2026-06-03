@@ -38,11 +38,11 @@ jobs:
         pytest tests/ --cov=app --cov-report=xml:coverage.xml --cov-report=term-missing --cov-fail-under=80
 
     - name: SonarQube Scan
-      uses: SonarSource/sonarqube-scan-action@v5
-      with:
-        projectBaseDir: bff-service
+      uses: sonarsource/sonarqube-scan-action@v6
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      with:
+        projectBaseDir: bff-service
 
     - name: Login to Docker Hub
       if: github.event_name == 'push'
