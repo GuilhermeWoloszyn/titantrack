@@ -158,3 +158,5 @@ async def get_historico_geral(
                 status_code=503,
                 detail=f"Erro ao consolidar histórico: {str(e)}"
             )
+        
+        # 12345
