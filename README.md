@@ -1,266 +1,168 @@
-# 🐾 TitanTrack AI — Barramento de Serviços e Arquitetura Global de Microsserviços
+TitanTrack AI
 
-Bem-vindo à documentação central do **TitanTrack AI**! Este repositório concentra a especificação arquitetural, os barramentos de roteamento lógico de APIs e os manuais operacionais do ecossistema. O projeto foi integralmente projetado sob um ecossistema **Multirrepo de Microsserviços**, implementando esteiras modernas de Integração e Entrega Contínua (CI/CD) e Observabilidade centralizada na nuvem. Vale-se pontuar que o sistema propriamente originou-se a partir de um auxílio à profissionais relacionados à engenharia do corpo (personais, nutricionistas, ademais).
-
----
-
-## 🏗️ Evolução da Arquitetura: Monolito ➡️ Microsserviços
-
-A refatoração e migração do antigo modelo monolítico local para uma infraestrutura distribuída em nuvem teve como objetivos fundamentais:
-* **Desacoplamento de Domínios:** Ciclos de desenvolvimento, testes e entrega completamente independentes entre a camada de Gateway e as regras de negócio.
-* **Escalabilidade Isolada:** Capacidade de escalar serviços críticos de forma independente no provedor de nuvem, reduzindo custos e otimizando recursos.
-* **Segurança Perimetral e Isolamento:** Barramento centralizado de segurança (Reverse Proxy) focado em mitigar o vazamento de credenciais e o mapeamento malicioso de rotas internas.
-
----
-
-## 🗺️ Diagrama de Processo Global (BPMN)
-
-O fluxo operacional e o ciclo de vida de uma requisição HTTP dentro do ecossistema **TitanTrack AI** são controlados dinamicamente pelas políticas de ambiente do Gateway. A modelagem abaixo, desenvolvida no *Bizagi Modeler*, detalha as raias de responsabilidade e a árvore de decisão perimetral:
-
-![Mapeamento de Processos TitanTrack AI](Bizagi.png)
-
-### 📌 Análise de Caminhos Lógicos do Diagrama:
-* **Fluxo Padrão (Business as Usual):** O usuário faz a requisição através do *Cliente (Front-End)* ➔ O *Gateway de Entrada (Kong)* intercepta o tráfego ➔ A rota solicitada **não** é `/docs` ➔ A requisição é tunelada para a *Camada de Serviços (Microsserviços)* ➔ O **BFF realiza o processamento** e devolve o evento final para o encerramento do ciclo com a *Resposta Entregue*.
-* **Desvio Condicional de Segurança (Isolamento de Documentação):** Se a rota solicitada for a raiz de documentação interativa (`/docs`), o Gateway avalia o escopo do ambiente ativo:
-  * **Se Ambiente for HOMOL (Sim):** O fluxo é retido imediatamente na camada perimetral de rede, acionando o componente de segurança para **Retornar 404 Not Found**, encerrando a conexão sem onerar os microsserviços internos.
-  * **Se Ambiente for DEV (Não/Outro):** O Gateway valida o acesso, avança para a etapa de **Exibir Swagger** e encerra o fluxo com sucesso para consumo dos desenvolvedores.
-
----
-
-## 🗂️ Inventário de Repositórios e Serviços
-
-O ecossistema TitanTrack é composto por repositórios independentes que operam de forma isolada e integrada:
-
-### 1. `titantrack-kong` (Camada de Infraestrutura)
-* **Papel:** Centralização de roteamento lógico e ativação de políticas de rede via Kong Gateway em modo declarativo DB-less (`kong.yml`).
-* **Hospedagem Render:** * Desenvolvimento (DEV): `https://titantrack-kong-dev.onrender.com`
-  * Homologação (HOMOL): `https://titantrack-kong-homol.onrender.com`
-
-### 2. `titantrack-bff` (Camada de Core Application)
-* **Papel:** Microsserviço responsável pela inteligência de negócio, persistência, controle de alunos e autenticação.
-* **Tecnologias:** Python, FastAPI.
-* **Hospedagem Render:**
-  * Desenvolvimento (DEV): `https://titantrack-wgv3.onrender.com`
-  * Homologação (HOMOL): `https://titantrack-bfff-homol.onrender.com`
-
-```http
-POST /auth
-```
-
-Responsável pela validação de credenciais e emissão de tokens.
-
-## Gerenciamento de Alunos
-
-```http
-GET /aluno
-POST /aluno
-```
-
-Responsável pelo cadastro, consulta e gerenciamento de alunos.
-
-## Documentação
-
-```http
-GET /docs
-```
-
-Interface Swagger/OpenAPI disponibilizada pelo FastAPI.
-
----
-
-## 🚀 Análise Técnica de CI/CD (Integração e Entrega Contínua)
-
-Toda a esteira de entrega de código é governada pelo **GitHub Actions**, disparando automações a partir das ramificações do fluxo de Git Flow.
-
-[Push / Pull Request] ➔ [Análise de Qualidade] ➔ [Isolamento de Branch] ➔ [Deploy Reativo Cloud]
+Este repositório contém a implementação da esteira de CI/CD, containerização e observabilidade do microsserviço BFF Service.
 
 
-### 1. Continuous Integration (CI) e Quality Gate
-* **Gatilho:** Qualquer push ou abertura de Pull Request direcionado às branches `develop` ou `master`.
-* **Métricas de Qualidade (SonarCloud):** Integração profunda com o painel do SonarCloud. A esteira realiza varredura estática completa (SAST), garantindo pontuação máxima (**Nota A**) nos quesitos de *Security*, *Reliability* e *Maintainability*. 
 
-> 💡 **Nota de Infraestrutura:** O status geral do Quality Gate em arquivos puramente configurativos e declarativos com menos de 20 linhas consta nativamente como `Not computed` pela plataforma Sonar para prevenir falsos negativos, mantendo as checagens e notas de segurança válidas e aprovadas.
+## REPOSITÓRIO
 
-### 2. Continuous Deployment (CD) e Isolamento de Ambientes
-O deploy é desacoplado e reativo. Conforme a branch de origem, as regras de negócio de segurança mudam estritamente:
+* Repositório: https://github.com/GuilhermeWoloszyn/titantrack
 
-* **Ambiente de Desenvolvimento (Branch `develop`):** Realiza o deploy para a nuvem de DEV. O arquivo `kong.yml` aponta para o BFF de desenvolvimento e mantém a documentação interativa do **Swagger Habilitada** em `/api/docs` para consumo ágil da equipe.
-* **Ambiente de Homologação (Branch `master`):** Realiza o deploy para o ambiente de homologação estável. Para segurança e conformidade, as rotas do Swagger são **Desabilitadas**, retornando `404 Not Found`.
-| Recurso | Desenvolvimento | Homologação |
-|----------|----------|----------|
-| URL | `titantrack-wgv3.onrender.com` | `titantrack-bfff-homol.onrender.com` |
-| Swagger | Disponível | Restrito/Bloqueado |
-| Banco de Dados | Ambiente de testes | Ambiente de homologação |
 
----
 
-## 📊 Arquitetura de Observabilidade Centralizada
+\---
 
-Para monitorar o tráfego e o motor assíncrono do Gateway sem onerar o consumo de disco local na nuvem, desenhamos uma estratégia de telemetria baseada em *Push Memory* via **Grafana Cloud**:
 
-1. **Exposição via Prometheus:** O plugin nativo do Prometheus foi acoplado ao barramento interno do Kong, expondo contadores reais no endpoint isolado `/api/metrics`.
-2. **Data Source Infinity (Grafana Cloud):** O dashboard consome os dados em tempo real utilizando o conector *Infinity* operando com Frontend Parser. Essa abordagem contorna proxies corporativos e restrições de rede.
-3. **Mapeamento de Concorrência:** O painel monitora a saúde interna do motor assíncrono através das métricas de timers:
-   * `timers.running`: Quantidade de tarefas executadas simultaneamente em segundo plano pelas políticas do gateway.
-   * `timers.pending`: Fila de espera de processos aguardando alocação de CPU.
+
+## 1. Link dos ambientes
+
+
+
+O deploy automático foi configurado utilizando o Render baseado na estratégia de Git Flow:
+
+
+
+* Ambiente de DEV (Branch "develop"): https://titantrack-wgv3.onrender.com
+
+&#x20;   - Nota: Swagger habilitado em "/docs".
+
+* Ambiente de HOMOL (Branch "master"): https://titantrack-bfff-homol.onrender.com/
+
+&#x20;   - Nota: Swagger desabilitado em homologação para conformidade de segurança (Retorna 404).
+
+
+
+\---
+
+
+
+## 2. Pipeline de CI/CD (GitHub Actions e SonarCloud)
+
+
+
+O pipeline automatizado executa as seguintes etapas a cada push ou pull request nas branches principais:
+
+1\.  Build e setup: Inicialização do ambiente isolado com Python 3.10.
+
+2\.  Instalação de dependências: Configuração do ecossistema do BFF.
+
+3\.  Testes automatizados: Execução do "pytest" com validação de cobertura via "pytest-cov".
+
+4\.  Trava de segurança: O pipeline falha automaticamente caso a cobertura de código seja inferior a 50% (em 92% conforme os testes).
+
+5\.  Análise de qualidade: Integração oficial com o SonarCloud para auditoria de bugs e vulnerabilidades.
+
+
+
+\---
+
+
+
+##  3. Segurança e Versionamento
+
+
+
+* Segurança (Dependabot): Ativado e configurado pelo ".github/dependabot.yml" para varredura diária de vulnerabilidades em dependências do Python.
+* Versionamento Semântico: Utilização de tags Git para controle de releases (Versão 1.0.0).
+
+
+
+## Monitoramento Real
+
+Caminho: titantrack/imagens_do_trabalho/dashboard\_metricas.png / titantrack/imagens_do_trabalho/dashboard\_numeros.png
+
+
+
+\---
+
+
+
+## 4. Observabilidade e Guia de Execução Local
+
+O microsserviço expõe métricas nativas do ecossistema FastAPI através da rota `/metrics`.
+
+### Componentes Utilizados
+
+* **Prometheus:** Responsável pela coleta periódica das métricas expostas pelo serviço implantado no Render, realizando consultas a cada 5 segundos.
+* **Grafana:** Responsável pela visualização dos dados coletados, permitindo o acompanhamento de métricas relacionadas a requisições HTTP, desempenho da aplicação e consumo de recursos.
+
+### Evidências de Monitoramento
+
+As capturas dos dashboards encontram-se disponíveis em:
+
+* `titantrack/imagens_do_trabalho/dashboard_metricas.png`
+* `titantrack/imagens_do_trabalho/dashboard_numeros.png`
+* `titantrack/imagens_do_trabalho/dashboard_outrosnumeros.png`
 
 ---
 
-## 🧪 Roteiro de Validação End-to-End (E2E)
+## Instruções para Execução Local da Observabilidade
 
-As requisições de teste e validação de arquitetura podem ser disparadas contra o Gateway de homologação (`https://titantrack-kong-homol.onrender.com`) e dev (`https://titantrack-kong-dev.onrender.com/docs`):
+Para visualizar os dashboards consumindo métricas diretamente do ambiente de desenvolvimento hospedado no Render, siga os passos abaixo.
 
-### 1. Teste de Rota de Negócio e Conectividade do BFF
-* **Método:** `POST` / `GET`
-* **URL:** `https://titantrack-kong-homol.onrender.com/api/auth`
-* **Resposta Esperada:** Status `200 OK` ou retorno JSON estruturado vinda do FastAPI (`{"detail":"Not Found"}`), provando que o Kong interceptou a requisição e estabeleceu o túnel com o back-end com sucesso.
+### Passo 1 – Inicialização dos Containers
 
-### 2. Teste de Bloqueio do Swagger (Segurança de Homologação)
-* **Método:** `GET`
-* **URL:** `https://titantrack-kong-homol.onrender.com/api/docs`
-* **Resposta Esperada:** Status `404 Not Found` controlado (`{"detail":"Not Found"}`), evidenciando que a documentação foi devidamente isolada e protegida contra varreduras externas no ambiente de homologação.
+Execute os comandos abaixo em um terminal:
 
-### 3. Coleta de Telemetria (Métricas do Gateway)
-* **Método:** `GET`
-* **URL:** `https://titantrack-kong-homol.onrender.com/api/metrics`
-* **Resposta Esperada:** Dump de metadados do barramento contendo o status de concorrência (`"pending": X, "running": Y`), indicando que o Prometheus está coletando a performance interna do ecossistema.
+```powershell
+docker rm -f prometheus grafana
 
-### 4. Teste do Ambiente DEV
-* **Método:** `GET`
-* **URL:** `https://titantrack-kong-dev.onrender.com/docs`
-* **Resposta Esperada:** Status `200 OK` e a liberação de outras novas rotas.
+# Inicializar Prometheus
+docker run -d --name prometheus -p 9090:9090 `
+-v "C:\Caminho\Ate\A\Pasta\prometheus.yml:/etc/prometheus/prometheus.yml" `
+prom/prometheus:latest
 
----
-
-# 🛠️ Execução Local
-
-## Pré-requisitos
-
-- Python 3.10+
-- Virtual Environment (venv)
-
-## Clonando o Projeto
-
-```bash
-git clone <repositorio>
-cd bff-service
+# Inicializar Grafana
+docker run -d --name grafana -p 3000:3000 grafana/grafana:latest
 ```
 
-## Criando o Ambiente Virtual
+### Passo 2 – Validação da Coleta de Métricas
 
-### Windows
+1. Acesse `http://localhost:9090`
+2. Navegue até **Status → Targets**
+3. Verifique se o alvo `titantrack-wgv3.onrender.com` aparece com status **UP**
 
-```bash
-python -m venv venv
-venv\Scripts\activate
-```
+Esse status confirma que o Prometheus está coletando métricas corretamente do ambiente DEV.
 
-### Linux / macOS
+### Passo 3 – Configuração do Grafana
 
-```bash
-python -m venv venv
-source venv/bin/activate
-```
+1. Acesse `http://localhost:3000`
+2. Utilize as credenciais padrão:
 
-## Instalando Dependências
-
-```bash
-pip install -r requirements.txt
-```
-
-## Executando a Aplicação
-
-```bash
-uvicorn app.main:app --reload --port 8000
-```
-
-A aplicação ficará disponível em:
+   * Usuário: `admin`
+   * Senha: `admin`
+3. Acesse **Connections → Data Sources**
+4. Clique em **Add data source**
+5. Selecione **Prometheus**
+6. Configure a URL:
 
 ```text
-http://localhost:8000
+http://host.docker.internal:9090
 ```
 
-Documentação Swagger:
+7. Clique em **Save & Test**
 
-```text
-http://localhost:8000/docs
+### Passo 4 – Visualização dos Dashboards
+
+1. Acesse **Dashboards → New Dashboard**
+2. Clique em **Add Visualization**
+3. Selecione a fonte de dados Prometheus
+4. Utilize consultas como:
+
+**Quantidade de requisições HTTP**
+
+```promql
+http_requests_total
 ```
 
----
+**Tempo acumulado de resposta**
 
-# 🧪 Testes de API
-
-## Métricas
-
-**Método**
-
-```http
-POST /metrics
+```promql
+http_request_duration_seconds_sum
 ```
 
-**URL**
+5. Clique em **Run Queries** para visualizar os dados em tempo real.
 
-```text
-https://titantrack-wgv3.onrender.com/metrics
-```
+Os gráficos permitirão acompanhar o comportamento das rotas disponibilizadas pelo BFF, incluindo os endpoints de autenticação e consulta de alunos.
 
-## Consulta do Ambiente
-
-**Método**
-
-```http
-GET /docs
-```
-
-**URL**
-
-```text
-https://titantrack-wgv3.onrender.com/docs
-```
-
-**Resposta Esperada**
-
-```http
-200 OK
-```
-
-Retorno contendo os registros cadastrados no sistema.
-
----
-
-## Consulta do Ambiente
-
-**Método**
-
-```http
-GET /docs
-```
-
-**URL**
-
-```text
-https://titantrack-wgv3.onrender.com/docs
-```
-
-**Resposta Esperada**
-
-```http
-200 OK
-```
-
-Retorno contendo os registros cadastrados no sistema.
-
----
-
-# 📚 Tecnologias Utilizadas
-
-- Python
-- FastAPI
-- Uvicorn
-- Pytest
-- Selenium
-- GitHub Actions
-- SonarCloud
-- Kong API Gateway
-- Grafana Cloud
-- Render
+## TODAS AS IMAGENS ACERCA DO TRABALHO ESTÃO ARMAZENADAS EM titantrack\imagens_do_trabalho
